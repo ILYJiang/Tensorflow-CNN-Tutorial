@@ -25,7 +25,27 @@ for x, y in zip(x_train, y_train):
         continue
 
     num_datas_list[label] += 1
+    img_dir = "train"
+    img_path = os.path.join(img_dir, "{}_{}.jpg".format(label, id))
+    id += 1
+    img = Image.fromarray(x)
+    img.save(img_path)
 
+
+for x, y in zip(x_test, y_test):
+
+    if np.sum(num_datas_list) > max_num_datas * len(num_datas_list):
+        break
+
+    label = y[0]
+    if label >= num_classes:
+        continue
+
+    if num_datas_list[label] == max_num_datas:
+        continue
+
+    num_datas_list[label] += 1
+    img_dir = "test"
     img_path = os.path.join(img_dir, "{}_{}.jpg".format(label, id))
     id += 1
     img = Image.fromarray(x)
