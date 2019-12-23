@@ -21,7 +21,7 @@ def read_data(train=False):
     #     datas.append(data)
     #     labels.append(label)
 
-    fp, da, la = PictureProcess.picture_process(train)
+    fp, da, la = PictureProcess.train_test(train)
     datas.extend(da)
     labels.extend(la)
     fpaths.extend(fp)
@@ -82,7 +82,7 @@ def process(train=False):
             mean_loss = tf.reduce_mean(losses)
 
             # 定义优化器，指定要优化的损失函数
-            optimizer = tf.train.AdamOptimizer(learning_rate=1e-2).minimize(losses)
+            optimizer = tf.train.AdamOptimizer(learning_rate=1e-3).minimize(losses)
 
             # 如果是训练，初始化参数
             sess.run(tf.global_variables_initializer())
@@ -92,23 +92,24 @@ def process(train=False):
                 labels_placeholder: labels,
                 dropout_placeholdr: 0.25
             }
-            for step in range(150):
-                _, mean_loss_val = sess.run([optimizer, mean_loss], feed_dict=train_feed_dict)
+            correct_prediction = tf.equal(tf.argmax(logits, 1), tf.cast(labels_placeholder, tf.int64))
+            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+            for step in range(500):
+                _, mean_loss_val, acc = sess.run([optimizer, mean_loss, accuracy], feed_dict=train_feed_dict)
 
-                if step % 10 == 0:
-                    print("step = {}\tmean loss = {}".format(step, mean_loss_val))
+                if (step + 1) % 10 == 0:
+                    print("step = {}\tmean loss = {}\t accuracy = {}".format(step + 1, mean_loss_val, acc))
             saver.save(sess, model_path)
-            print("训练结束，保存模型到{}".format(model_path))
+            print("训练结束，保存模型到{}，本次训练图片数量:{}".format(model_path, len(labels)))
         else:
             print("测试模式")
-
             predicted_labels = tf.arg_max(logits, 1)
             # 如果是测试，载入参数
             print("从{}载入模型".format(model_path))
             saver.restore(sess, model_path)
             # label和名称的对照关系
             label_name_dict = {
-                # -1: "未知",
+                -1: "未知",
                 0: "汽车",
                 1: "罐车",
                 2: "运渣车"
@@ -119,15 +120,35 @@ def process(train=False):
                 labels_placeholder: labels,
                 dropout_placeholdr: 0
             }
-            predicted_labels_val = sess.run(predicted_labels, feed_dict=test_feed_dict)
+
+            correct_prediction = tf.equal(tf.argmax(logits, 1), tf.cast(labels_placeholder, tf.int64))
+            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+            # 利用交叉熵定义损失
+            losses = tf.nn.softmax_cross_entropy_with_logits(
+                labels=tf.one_hot(labels_placeholder, num_classes),
+                logits=logits
+            )
+            # # 平均损失
+            # mean_loss = tf.reduce_mean(losses)
+
+            predicted_labels_val, loss_res, acc = sess.run([predicted_labels, losses, accuracy], feed_dict=test_feed_dict)
+            print("本次测试图片数量:{}".format(len(labels)))
+
+            print("预测返回转换后的结果:{}".format(predicted_labels_val))
+            print("正确率:{}".format(acc))
             # 真实label与模型预测label
-            for fpath, real_label, predicted_label in zip(fpaths, labels, predicted_labels_val):
+            for fpath, real_label, predicted_label, loss in zip(fpaths, labels, predicted_labels_val, loss_res):
                 # 将label id转换为label名
+                # if real_label != predicted_label:
                 real_label_name = label_name_dict[real_label]
                 predicted_label_name = label_name_dict[predicted_label]
-                print("{}\t{} => {}".format(fpath, real_label_name, predicted_label_name))
+                print("{}\t{} => {}, loss:{}".format(fpath, real_label_name, predicted_label_name, loss))
 
 
 if __name__ == '__main__':
-    process(train=False)
+    # process(train=True)
+    # process(train=False)
     # read_data(data_dir)
+    print(np.log(10))
+    print(np.log10(np.e))
+    print(np.e)
